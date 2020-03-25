@@ -55,7 +55,7 @@ func (w *RpcWriter) WriteLineProtocol(client *Client, req *alitsdb_serialization
 				// request succeeded so no need to retry
 				retries = 0
 			} else {
-				log.Printf("Error request mput interface(%d: %d): %s\n", len(req.Fnames), len(req.Points), err.Error())
+				log.Printf("Error request mput interface(%d: %d): %s %s\n", len(req.Fnames), len(req.Points), client.url, err.Error())
 				retries--
 
 				// wait a while
@@ -155,29 +155,42 @@ func (w *RpcWriter) ProcessBatches(doLoad bool, bufPool *sync.Pool, wg *sync.Wai
 	if (client.init() != nil) {
 		return
 	}
+	tick := time.Tick(time.Second)
 
 	buff := make([]*alitsdb_serialization.MputRequest, 0, batchSize)
 	var n int
-	for basePoint := range w.pointsChan {
 
-		buff = append(buff, basePoint)
-		n++
-		if n > 0 && (n >= batchSize) {
+	for {
+		var basePoint *alitsdb_serialization.MputRequest
+		timeout := false
+
+		select {
+		case basePoint = <- w.pointsChan:
+			buff = append(buff, basePoint)
+			n++
+		case <-tick:
+			timeout = true
+		}
+
+		if n > 0 && (n >= batchSize || timeout) {
 
 			var err error
 			for {
 				req := requestPool.Get().(*alitsdb_serialization.MputRequest)
 				//req := new(alitsdb_serialization.MputRequest)
-				req.Points = make([]*alitsdb_serialization.MputPoint, len(buff))
+				if len(req.Points) < len(buff) {
+					req.Points = make([]*alitsdb_serialization.MputPoint, len(buff))
+				}
 				for i, p := range(buff) {
 					req.Points[i] = p.Points[0]
 					req.Fnames = p.Fnames
 				}
 				_, err = w.WriteLineProtocol(client, req)
-				req.Reset()
+				//req.Reset()
 				requestPool.Put(req)
 
 				for _, p := range(buff) {
+					tasksGroup.Done()
 					p.Reset()
 					pointPool.Put(p)
 				}
