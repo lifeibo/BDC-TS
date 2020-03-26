@@ -37,9 +37,9 @@ var logcount = 0
 // or it returns a new error if the RPC response isn't as expected.
 func (w *RpcWriter) WriteLineProtocol(client *Client, req *alitsdb_serialization.MputRequest) (latencyNs int64, err error) {
 	if doLoad {
-		retries := MputAttemptsLimit
+		retries := 0
 
-		for retries > 0 {
+		for {
 			last := time.Now()
 			//TODO: send the write request
 			ctx, cel := context.WithTimeout(context.Background(), time.Second*120)
@@ -61,25 +61,25 @@ func (w *RpcWriter) WriteLineProtocol(client *Client, req *alitsdb_serialization
 				// request succeeded so no need to retry
 				break
 			} else {
-				log.Printf("Error request mput interface(%d: %d): %s %s\n", len(req.Fnames), len(req.Points), client.url, err.Error())
-				retries--
+				log.Printf("Error request mput interface(%d: %d): %s tries: %d %s\n", len(req.Fnames),
+					len(req.Points), client.url, retries, err.Error())
+				retries++
 
 				// wait a while
-				time.Sleep(time.Duration((MputAttemptsLimit-retries)*10) * time.Second)
+				time.Sleep(time.Duration(retries*10) * time.Second)
 				// then start to retry
 				client.close()
 				if client.init() != nil {
 					/* init failed */
 					log.Println("[WARN] MultiFieldsPutServiceClient initialization failed")
-					retries = 0
 				}
 			}
 		}
 
 		// it means all attempts failed when the retries decreased to zero
-		if retries == 0 {
-			log.Fatalf("[Fatal]Error caused all retry attempts failed")
-		}
+		//if retries == 0 {
+		//	log.Fatalf("[Fatal]Error caused all retry attempts failed")
+		//}
 	}
 
 	return 0, err
