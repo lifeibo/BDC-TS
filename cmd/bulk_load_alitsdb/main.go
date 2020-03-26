@@ -425,7 +425,7 @@ func scanBinaryfile(itemsPerBatch int) (int64, int64) {
 					return
 				}
 				basePoint := pointPool.Get().(*alitsdb_serialization.MputRequest)
-				err = basePoint.Unmarshal(byteBuff[:size])
+				err = basePoint.Unmarshal(byteBuff)
 				if err != nil {
 					log.Fatalf("cannot unmarshall %d item: %v\n", itemsRead, err)
 				}
@@ -467,6 +467,8 @@ func scanBinaryfile(itemsPerBatch int) (int64, int64) {
 
 		if uint64(cap(byteBuff)) < size {
 			byteBuff = make([]byte, size)
+		} else {
+			byteBuff = byteBuff[:size]
 		}
 
 		bytesPerItem := uint64(0)
