@@ -84,7 +84,7 @@ var (
 	commaspace   = []byte(", ")
 	newline      = []byte("\n")
 
-	currentVersion      = "alitsdb data load tools, version: 1.0.1"
+	currentVersion      = "alitsdb data load tools, version: 1.0.3"
 	startTimeOnce sync.Once
 	firstWriteTime time.Time
 	lastWriteTime  time.Time
@@ -389,7 +389,6 @@ func scanBinaryfile(itemsPerBatch int) (int64, int64) {
 	log.Println("start load datas")
 	defer log.Println("end load datas")
 	var itemsRead, bytesRead int64
-	var err error
 	var size uint64
 	//TODO:
 	reader := bufio.NewReaderSize(os.Stdin, 4*1024*1024)
@@ -425,7 +424,7 @@ func scanBinaryfile(itemsPerBatch int) (int64, int64) {
 					return
 				}
 				basePoint := pointPool.Get().(*alitsdb_serialization.MputRequest)
-				err = basePoint.Unmarshal(byteBuff)
+				err := basePoint.Unmarshal(byteBuff)
 				if err != nil {
 					log.Fatalf("cannot unmarshall %d item: %v\n", itemsRead, err)
 				}
@@ -453,6 +452,7 @@ func scanBinaryfile(itemsPerBatch int) (int64, int64) {
 		}()
 	}
 
+	var err error
 	for {
 		err = binary.Read(reader, binary.LittleEndian, &size)
 		if err == io.EOF {

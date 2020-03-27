@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -36,6 +37,7 @@ var logcount = 0
 // WriteLineProtocol returns the latency in nanoseconds and any error received while sending the data over RPC,
 // or it returns a new error if the RPC response isn't as expected.
 func (w *RpcWriter) WriteLineProtocol(client *Client, req *alitsdb_serialization.MputRequest) (latencyNs int64, err error) {
+
 	if doLoad {
 		retries := 0
 
@@ -65,8 +67,11 @@ func (w *RpcWriter) WriteLineProtocol(client *Client, req *alitsdb_serialization
 					len(req.Points), client.url, retries, err.Error())
 				retries++
 
+				s1 := rand.NewSource(time.Now().UnixNano())
+				r1 := rand.New(s1)
+
 				// wait a while
-				time.Sleep(time.Duration(retries*10) * time.Second)
+				time.Sleep(time.Duration(r1.Intn(10)) * time.Second)
 				// then start to retry
 				client.close()
 				if client.init() != nil {
